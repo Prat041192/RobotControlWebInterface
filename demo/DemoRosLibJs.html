@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<script type="text/javascript" src="http://static.robotwebtools.org/EventEmitter2/current/eventemitter2.min.js"></script>
+<script type="text/javascript" src="http://static.robotwebtools.org/roslibjs/current/roslib.min.js"></script>
+
+<script>
+    // Connecting to ROS
+    var ros = new ROSLIB.Ros();
+
+    // If there is an error on the backend, an 'error' emit will be emitted.
+    ros.on('error', function(error) {
+        document.getElementById('connecting').style.display = 'none';
+        document.getElementById('connected').style.display = 'none';
+        document.getElementById('closed').style.display = 'none';
+        document.getElementById('error').style.display = 'inline';
+        console.log(error);
+    });
+
+    // Find out exactly when we made a connection.
+    ros.on('connection', function() {
+        console.log('Connection made!');
+        document.getElementById('connecting').style.display = 'none';
+        document.getElementById('error').style.display = 'none';
+        document.getElementById('closed').style.display = 'none';
+        document.getElementById('connected').style.display = 'inline';
+    });
+
+    ros.on('close', function() {
+        console.log('Connection closed.');
+        document.getElementById('connecting').style.display = 'none';
+        document.getElementById('connected').style.display = 'none';
+        document.getElementById('closed').style.display = 'inline';
+    });
+
+    // Create a connection to the rosbridge WebSocket server.
+    ros.connect('ws://Alexander-RPi:9090/');
+
+    //-------------------------------------------------------------------------------------------------
+    // Publishing a Topic
+    //----------------------
+    // First, one have to create a topic object with details of the topic's name and message type.
+    // Then one create the payload to be published. The object we pass in to ros.Message matches the
+    // fields defined in the geometry_msgs/Twist.msg definition.
+    // And finally, publish.
+    //-------------------------------------------------------------------------------------------------  
+
+     // extCtrlAct: Topic on which the UI publishes when it wants to control the robots position.
+    var cmdVel = new ROSLIB.Topic({
+        ros : ros,
+        name : '/extCtrlAct',
+        messageType : 'geometry_msgs/Twist'
+    });
+
+    
+    var twist = new ROSLIB.Message({
+    linear : {
+        x : 0.1, // @Prateek: Linear that the user specified via a control.
+        y : 0.0,
+        z : 0.0
+    },
+    angular : {
+        x : 0.0,
+        y : 0.0,
+        z : 0.1 // @Prateek: Angle that the user specified via a control.
+    }
+    });
+
+    cmdVel.publish(twist);
+
+    //-------------------------------------------------------------------------------------------------
+    // Subscribing to a Topic
+    //----------------------
+    // Like when publishing a topic, one have to create a Topic object with details of the topic's name
+    // and message type. Note that one can call publish or subscribe on the same topic object.
+    // Then one add a callback to be called every time a message is published on this topic.
+    //-------------------------------------------------------------------------------------------------  
+
+    // extCtrlReq: Topic on which the robot publishes when it needs help from the supervisor.
+    var listener = new ROSLIB.Topic({
+        ros : ros,
+        name : '/extCtrlReq',
+        messageType : 'std_msgs/uint8'
+    });
+
+  
+    listener.subscribe(function(message) {
+        console.log('Received message on ' + listener.name + ': ' + message.data);
+        // If desired, one can unsubscribe from the topic as well.
+        // listener.unsubscribe();
+    });
+
+</script>
+    </head>
+    <body>
+        <h1>Simple roslib Example</h1>
+        <p>Run the following commands in the terminal then refresh this page. Check the JavaScript console for the output.</p>
+        <ol>
+            <li><tt>roscore</tt></li>
+            <li><tt>roslaunch rosbridge_server rosbridge_websocket.launch</tt></li>
+        </ol>
+        <div id="statusIndicator">
+            <p id="connecting">
+            Connecting to rosbridge...
+            </p>
+            <p id="connected" style="color:#00D600; display:none">
+            Connected
+            </p>
+            <p id="error" style="color:#FF0000; display:none">
+            Error in the backend!
+            </p>
+            <p id="closed" style="display:none">
+            Connection closed.
+            </p>
+        </div>
+
+        <form>
+            <input type="button" id="btnImageSnapshot" value="Refresh snapshot" />
+            <input type="button" id="btnMap" value="Refresh map" />
+        </form>
+        <script type="text/javascript">
+            // @Prateek: Current image that to robot has taken:
+            // The IP address have to be customizable via the UI.
+            document.getElementById('btnImageSnapshot').onclick = function() {
+                var val = document.getElementById('imagename').value,
+                    src = 'http://192.168.178.28:8080/snapshot?topic=/camera/image',
+                    img = document.createElement('img');
+
+                img.src = src;
+                document.body.appendChild(img);
+            }
+
+            // @Prateek: Current map that to robot has calculated:
+            document.getElementById('btnMap').onclick = function() {
+                var val = document.getElementById('imagename').value,
+                    src = 'http://192.168.178.28:8080/snapshot?topic=/gmapping/map',
+                    img = document.createElement('img');
+
+                img.src = src;
+                document.body.appendChild(img);
+            }
+
+            // @Prateek: Video stream URL:
+            // http://http://192.168.178.28:8080/stream?topic=/camera/video
+
+            // @Prateek: Overview of available ROS topics: 
+            // http://http://192.168.178.28:8080/
+        </script>
+    </body>
+</html>
